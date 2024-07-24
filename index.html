@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Financeiro</title>
+  <style>
+    /* Estilos modernos */
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: linear-gradient(135deg, #1b1b1b, #3a3a3a);
+      color: #ffffff;
+      height: 100vh;
+      overflow-y: auto; /* Permite rolagem vertical */
+    }
+    header {
+      text-align: center;
+      margin: 20px;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      color: #FFD700; /* Amarelo dourado */
+    }
+    main {
+      background: #252525;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      width: 90%;
+      max-width: 600px;
+      flex: 1; /* Permite que o main ocupe espaço disponível */
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start; /* Alinhar para o topo */
+    }
+    section {
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #FFD700;
+      margin-bottom: 10px; 
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #FFD700;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    label {
+      margin: 10px 0 5px;
+      font-weight: 500;
+    }
+    input[type="date"], input[type="number"], input[type="text"] {
+      border: none;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 15px;
+      background-color: #333;
+      color: white;
+    }
+    input:focus {
+      outline: none;
+      box-shadow: 0 0 5px #FFD700;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 15px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #receitas-list, #despesas-list {
+      list-style: none;
+      padding: 0;
+      max-height: 150px; /* Limitar a altura para rolagem */
+      overflow-y: auto; /* Permitir rolagem se necessário */
+    }
+    #receitas-list li, #despesas-list li {
+      padding: 10px;
+      border-bottom: 1px solid #444;
+    }
+    #receitas-list li:last-child, #despesas-list li:last-child {
+      border-bottom: none;
+    }
+    #saldo-total {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 15px;
+      color: #FFD700;
+    }
+    /* Estilos para o botão de exportar */
+    #exportar {
+      background-color: #007BFF;
+      color: #fff;
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    #exportar:hover {
+      background-color: #0056b3;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Controle Financeiro</h1>
+  </header>
+  <main>
+    <section id="receitas">
+      <h2>Receitas</h2>
+      <form id="receita-form">
+        <label for="receita-data">Data:</label>
+        <input type="date" id="receita-data" name="receita-data" required>
+        
+        <label for="receita-valor">Valor:</label>
+        <input type="number" id="receita-valor" name="receita-valor" required>
+
+        <label for="receita-descricao">Descrição:</label>
+        <input type="text" id="receita-descricao" name="receita-descricao" required>
+
+        <button type="submit">Adicionar Receita</button>
+      </form>
+      <ul id="receitas-list"></ul>
+    </section>
+  
+    <section id="despesas">
+      <h2>Despesas</h2>
+      <form id="despesa-form">
+        <label for="despesa-data">Data:</label>
+        <input type="date" id="despesa-data" name="despesa-data" required>
+        
+        <label for="despesa-valor">Valor:</label>
+        <input type="number" id="despesa-valor" name="despesa-valor" required>
+
+        <label for="despesa-descricao">Descrição:</label>
+        <input type="text" id="despesa-descricao" name="despesa-descricao" required>
+
+        <button type="submit">Adicionar Despesa</button>
+      </form>
+      <ul id="despesas-list"></ul>
+    </section>
+  
+    <section id="saldo">
+      <h2>Saldo:</h2>
+      <p id="saldo-total">R$ 0.00</p>
+    </section>
+  
+    <button id="exportar">Exportar para Excel</button>
+
+    <script>
+      const receitasList = document.getElementById('receitas-list');
+      const despesasList = document.getElementById('despesas-list');
+      const saldoTotal = document.getElementById('saldo-total');
+
+      let receitas = [];
+      let despesas = [];
+      let saldo = 0;
+
+      function adicionarReceita(event) {
+        event.preventDefault();
+        const receitaData = document.getElementById('receita-data').value;
+        const receitaValor = parseFloat(document.getElementById('receita-valor').value);
+        const receitaDescricao = document.getElementById('receita-descricao').value;
+        receitas.push({ valor: receitaValor, descricao: receitaDescricao });
+        atualizarSaldo();
+        limparFormulario('receita-form');
+        adicionarLancamento('Receita', receitaDescricao);
+      }
+
+      function adicionarDespesa(event) {
+        event.preventDefault();
+        const despesaData = document.getElementById('despesa-data').value;
+        const despesaValor = parseFloat(document.getElementById('despesa-valor').value);
+        const despesaDescricao = document.getElementById('despesa-descricao').value;
+        despesas.push({ valor: despesaValor, descricao: despesaDescricao });
+        atualizarSaldo();
+        limparFormulario('despesa-form');
+        adicionarLancamento('Despesa', despesaDescricao);
+      }
+
+      function atualizarSaldo() {
+        saldo = 0;
+        receitas.forEach(receita => {
+          saldo += receita.valor;
+        });
+        despesas.forEach(despesa => {
+          saldo -= despesa.valor;
+        });
+        saldoTotal.textContent = `R$ ${saldo.toFixed(2)}`;
+      }
+
+      function limparFormulario(formId) {
+        const form = document.getElementById(formId);
+        form.reset();
+      }
+
+      function adicionarLancamento(tipo, descricao) {
+        const lancamento = document.createElement('li');
+        lancamento.textContent = descricao;
+        if (tipo === 'Receita') {
+          receitasList.appendChild(lancamento);
+        } else {
+          despesasList.appendChild(lancamento);
+        }
+      }
+
+      function exportarParaExcel() {
+        const wb = XLSX.utils.book_new();
+        const wsReceitas = XLSX.utils.json_to_sheet(receitas);
+        const wsDespesas = XLSX.utils.json_to_sheet(despesas);
+        const wsSaldo = XLSX.utils.aoa_to_sheet([['Saldo', saldo.toFixed(2)]]);
+        
+        XLSX.utils.book_append_sheet(wb, wsReceitas, 'Receitas');
+        XLSX.utils.book_append_sheet(wb, wsDespesas, 'Despesas');
+        XLSX.utils.book_append_sheet(wb, wsSaldo, 'Saldo');
+        
+        XLSX.writeFile(wb, 'controle_financeiro.xlsx');
+      }
+
+      document.getElementById('receita-form').addEventListener('submit', adicionarReceita);
+      document.getElementById('despesa-form').addEventListener('submit', adicionarDespesa);
+      document.getElementById('exportar').addEventListener('click', exportarParaExcel);
+    </script>
+  </main>
+</body>
+</html>
